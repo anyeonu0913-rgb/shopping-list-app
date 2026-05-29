@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🛒 쇼핑리스트</title>
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --card: #ffffff;
+      --primary: #4f7cff;
+      --primary-dark: #3a63d8;
+      --text: #1f2430;
+      --muted: #9aa3b2;
+      --danger: #ff5a5a;
+      --done: #c4ccd8;
+      --shadow: 0 8px 24px rgba(40, 60, 120, 0.10);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 48px 16px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 480px;
+      background: var(--card);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--primary), #7a9bff);
+      color: #fff;
+      padding: 28px 24px 22px;
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    header p {
+      margin-top: 6px;
+      font-size: 0.85rem;
+      opacity: 0.9;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+      padding: 20px 24px 12px;
+    }
+
+    .input-row input {
+      flex: 1;
+      padding: 12px 14px;
+      border: 2px solid #e6eaf2;
+      border-radius: 12px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .input-row input:focus { border-color: var(--primary); }
+
+    .input-row button {
+      padding: 0 20px;
+      border: none;
+      background: var(--primary);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .input-row button:hover { background: var(--primary-dark); }
+
+    .auto-row {
+      padding: 0 24px 4px;
+    }
+
+    .auto-btn {
+      width: 100%;
+      padding: 11px;
+      border: 2px dashed #cfd6e4;
+      background: #fbfcff;
+      color: var(--primary);
+      font-size: 0.95rem;
+      font-weight: 600;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .auto-btn:hover:not(:disabled) {
+      border-color: var(--primary);
+      background: #f0f4ff;
+    }
+    .auto-btn:disabled {
+      opacity: 0.6;
+      cursor: progress;
+    }
+
+    .stats {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 26px 8px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .stats button {
+      background: none;
+      border: none;
+      color: var(--danger);
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    .stats button:hover { text-decoration: underline; }
+
+    ul {
+      list-style: none;
+      padding: 8px 16px 24px;
+      max-height: 50vh;
+      overflow-y: auto;
+    }
+
+    li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 12px;
+      border-radius: 12px;
+      transition: background 0.12s;
+    }
+    li:hover { background: #f7f9fd; }
+
+    li .check {
+      width: 22px;
+      height: 22px;
+      border: 2px solid #cfd6e4;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.15s;
+      font-size: 13px;
+      color: #fff;
+    }
+
+    li.done .check {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    li .label {
+      flex: 1;
+      font-size: 1rem;
+      cursor: pointer;
+      word-break: break-all;
+    }
+
+    li.done .label {
+      text-decoration: line-through;
+      color: var(--done);
+    }
+
+    li .delete {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 1.2rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 4px 6px;
+      border-radius: 8px;
+      transition: all 0.15s;
+    }
+    li .delete:hover { color: var(--danger); background: #ffecec; }
+
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 40px 20px;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>🛒 쇼핑리스트</h1>
+      <p>필요한 물건을 추가하고, 사면 체크하세요!</p>
+    </header>
+
+    <div class="input-row">
+      <input type="text" id="itemInput" placeholder="예: 우유, 계란, 빵..." autocomplete="off" />
+      <button id="addBtn">추가</button>
+    </div>
+
+    <div class="auto-row">
+      <button id="autoAddBtn" class="auto-btn">⚡ 자동 추가</button>
+    </div>
+
+    <div class="stats">
+      <span id="counter"></span>
+      <button id="clearDone">완료 항목 비우기</button>
+    </div>
+
+    <ul id="list"></ul>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "shopping-list-items";
+    const input = document.getElementById("itemInput");
+    const addBtn = document.getElementById("addBtn");
+    const list = document.getElementById("list");
+    const counter = document.getElementById("counter");
+    const clearDoneBtn = document.getElementById("clearDone");
+    const autoAddBtn = document.getElementById("autoAddBtn");
+
+    let items = load();
+
+    function load() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+      } catch {
+        return [];
+      }
+    }
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    }
+
+    function addItem() {
+      const text = input.value.trim();
+      if (!text) return;
+      items.push({ id: Date.now(), text, done: false });
+      input.value = "";
+      save();
+      render();
+      input.focus();
+    }
+
+    function toggleItem(id) {
+      const item = items.find((i) => i.id === id);
+      if (item) item.done = !item.done;
+      save();
+      render();
+    }
+
+    function deleteItem(id) {
+      items = items.filter((i) => i.id !== id);
+      save();
+      render();
+    }
+
+    function clearDone() {
+      items = items.filter((i) => !i.done);
+      save();
+      render();
+    }
+
+    function render() {
+      list.innerHTML = "";
+
+      if (items.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "🛍️ 아직 항목이 없어요. 위에서 추가해 보세요!";
+        list.appendChild(empty);
+      } else {
+        items.forEach((item) => {
+          const li = document.createElement("li");
+          if (item.done) li.classList.add("done");
+
+          const check = document.createElement("div");
+          check.className = "check";
+          check.textContent = item.done ? "✓" : "";
+          check.title = "체크/해제";
+          check.addEventListener("click", () => toggleItem(item.id));
+
+          const label = document.createElement("span");
+          label.className = "label";
+          label.textContent = item.text;
+          label.addEventListener("click", () => toggleItem(item.id));
+
+          const del = document.createElement("button");
+          del.className = "delete";
+          del.textContent = "×";
+          del.title = "삭제";
+          del.addEventListener("click", () => deleteItem(item.id));
+
+          li.append(check, label, del);
+          list.appendChild(li);
+        });
+      }
+
+      const remaining = items.filter((i) => !i.done).length;
+      counter.textContent = `남은 항목 ${remaining}개 / 전체 ${items.length}개`;
+    }
+
+    // 자동 추가 기능: 미리 정의된 샘플 아이템을 하나씩 자동으로 추가
+    const SAMPLE_ITEMS = [
+      "우유", "계란", "식빵", "바나나", "사과",
+      "토마토", "닭가슴살", "요거트", "커피", "치즈",
+    ];
+
+    function sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    async function autoAdd() {
+      autoAddBtn.disabled = true;
+      const original = autoAddBtn.textContent;
+
+      // 이미 있는 항목은 건너뛰고, 없는 것만 무작위 순서로 추가
+      const existing = new Set(items.map((i) => i.text));
+      const pool = SAMPLE_ITEMS
+        .filter((name) => !existing.has(name))
+        .sort(() => Math.random() - 0.5);
+      const toAdd = pool.slice(0, 5); // 한 번에 5개씩 추가
+
+      if (toAdd.length === 0) {
+        autoAddBtn.textContent = "✅ 추가할 샘플이 없어요";
+        await sleep(1200);
+        autoAddBtn.textContent = original;
+        autoAddBtn.disabled = false;
+        return;
+      }
+
+      for (let i = 0; i < toAdd.length; i++) {
+        autoAddBtn.textContent = `⚡ 자동 추가 중... (${i + 1}/${toAdd.length})`;
+        items.push({ id: Date.now() + i, text: toAdd[i], done: false });
+        save();
+        render();
+        await sleep(450); // 하나씩 추가되는 모습이 보이도록 약간의 지연
+      }
+
+      autoAddBtn.textContent = original;
+      autoAddBtn.disabled = false;
+    }
+
+    addBtn.addEventListener("click", addItem);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") addItem();
+    });
+    clearDoneBtn.addEventListener("click", clearDone);
+    autoAddBtn.addEventListener("click", autoAdd);
+
+    render();
+    input.focus();
+  </script>
+</body>
+</html>
