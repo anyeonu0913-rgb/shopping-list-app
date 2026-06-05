@@ -227,8 +227,18 @@
     <ul id="list"></ul>
   </div>
 
-  <script>
-    const STORAGE_KEY = "shopping-list-items";
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+    // Supabase 설정 — anon 키는 클라이언트에 노출되도록 설계된 공개 키입니다.
+    // 접근 통제는 이 키가 아니라 Supabase RLS(Row Level Security) 정책으로 합니다.
+    const SUPABASE_URL = "https://mkdgdovqhmhqumaotkar.supabase.co";
+    const SUPABASE_ANON_KEY =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1rZGdkb3ZxaG1ocXVtYW90a2FyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTAyMzEsImV4cCI6MjA5NjIyNjIzMX0.OB6U17nJjaiF6IttJCShR29oGDGMwDJ58l1f2l4-Evw";
+    const TABLE = "shopping_items";
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
     const input = document.getElementById("itemInput");
     const addBtn = document.getElementById("addBtn");
     const list = document.getElementById("list");
@@ -236,47 +246,53 @@
     const clearDoneBtn = document.getElementById("clearDone");
     const autoAddBtn = document.getElementById("autoAddBtn");
 
-    let items = load();
+    let items = [];
 
-    function load() {
-      try {
-        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-      } catch {
-        return [];
-      }
+    function showError(prefix, error) {
+      console.error(prefix, error);
+      alert(`${prefix}: ${error.message ?? error}`);
     }
 
-    function save() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    // --- 데이터 접근 (Supabase) ---
+    async function fetchItems() {
+      const { data, error } = await supabase
+        .from(TABLE)
+        .select("*")
+        .order("created_at", { ascending: true });
+      if (error) return showError("불러오기 실패", error);
+      items = data ?? [];
+      render();
     }
 
-    function addItem() {
+    async function addItem() {
       const text = input.value.trim();
       if (!text) return;
-      items.push({ id: Date.now(), text, done: false });
       input.value = "";
-      save();
-      render();
       input.focus();
+      const { error } = await supabase.from(TABLE).insert({ text });
+      if (error) return showError("추가 실패", error);
+      await fetchItems();
     }
 
-    function toggleItem(id) {
-      const item = items.find((i) => i.id === id);
-      if (item) item.done = !item.done;
-      save();
-      render();
+    async function toggleItem(id, currentDone) {
+      const { error } = await supabase
+        .from(TABLE)
+        .update({ done: !currentDone })
+        .eq("id", id);
+      if (error) return showError("변경 실패", error);
+      await fetchItems();
     }
 
-    function deleteItem(id) {
-      items = items.filter((i) => i.id !== id);
-      save();
-      render();
+    async function deleteItem(id) {
+      const { error } = await supabase.from(TABLE).delete().eq("id", id);
+      if (error) return showError("삭제 실패", error);
+      await fetchItems();
     }
 
-    function clearDone() {
-      items = items.filter((i) => !i.done);
-      save();
-      render();
+    async function clearDone() {
+      const { error } = await supabase.from(TABLE).delete().eq("done", true);
+      if (error) return showError("정리 실패", error);
+      await fetchItems();
     }
 
     function render() {
@@ -296,12 +312,12 @@
           check.className = "check";
           check.textContent = item.done ? "✓" : "";
           check.title = "체크/해제";
-          check.addEventListener("click", () => toggleItem(item.id));
+          check.addEventListener("click", () => toggleItem(item.id, item.done));
 
           const label = document.createElement("span");
           label.className = "label";
           label.textContent = item.text;
-          label.addEventListener("click", () => toggleItem(item.id));
+          label.addEventListener("click", () => toggleItem(item.id, item.done));
 
           const del = document.createElement("button");
           del.className = "delete";
@@ -318,7 +334,7 @@
       counter.textContent = `남은 항목 ${remaining}개 / 전체 ${items.length}개`;
     }
 
-    // 자동 추가 기능: 미리 정의된 샘플 아이템을 하나씩 자동으로 추가
+    // 자동 추가 기능: 미리 정의된 샘플 아이템을 하나씩 Supabase 에 추가
     const SAMPLE_ITEMS = [
       "우유", "계란", "식빵", "바나나", "사과",
       "토마토", "닭가슴살", "요거트", "커피", "치즈",
@@ -349,10 +365,10 @@
 
       for (let i = 0; i < toAdd.length; i++) {
         autoAddBtn.textContent = `⚡ 자동 추가 중... (${i + 1}/${toAdd.length})`;
-        items.push({ id: Date.now() + i, text: toAdd[i], done: false });
-        save();
-        render();
-        await sleep(450); // 하나씩 추가되는 모습이 보이도록 약간의 지연
+        const { error } = await supabase.from(TABLE).insert({ text: toAdd[i] });
+        if (error) { showError("자동 추가 실패", error); break; }
+        await fetchItems(); // 하나씩 추가되는 모습이 보이도록 매번 새로고침
+        await sleep(450);
       }
 
       autoAddBtn.textContent = original;
@@ -366,7 +382,8 @@
     clearDoneBtn.addEventListener("click", clearDone);
     autoAddBtn.addEventListener("click", autoAdd);
 
-    render();
+    // 최초 로드 시 Supabase 에서 데이터 가져오기
+    fetchItems();
     input.focus();
   </script>
 </body>
